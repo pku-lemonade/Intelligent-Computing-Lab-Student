@@ -1,0 +1,40 @@
+# Week 02 Nsight Compute CLI Summary
+
+Source: bojieli/ai-infra-book @ 115c8638d54bdc2e1afa00f44d438e5fdb04826e
+Report: n512-flash.ncu-rep (FlashAttention, sequence length 512)
+License: Apache-2.0
+Report SHA-256: edba6619b7fbf0ce6c6a8ac40b123584e8fdb330ce3734aa1ba90121826e34b0
+
+This summary contains only fields present in the report.
+The Systems sample is a different workload and must not be correlated directly.
+
+  void flash_fwd_splitkv_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, bfloat16_t>>, 1, 0, 0, 1, 1, 0, 1, 0>(Flash_fwd_params) (8, 4, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+  gpu__time_duration.sum                                                      us                 6.11
+  launch__block_dim_x                                                      block                  128
+  launch__block_dim_y                                                      block                    1
+  launch__block_dim_z                                                      block                    1
+  launch__grid_dim_x                                                                                8
+  launch__grid_dim_y                                                                                4
+  launch__grid_dim_z                                                                                1
+  launch__occupancy_limit_blocks                                           block                   24
+  launch__occupancy_limit_registers                                        block                    2
+  launch__occupancy_limit_shared_mem                                       block                    1
+  launch__occupancy_limit_warps                                            block                   12
+  launch__registers_per_thread                                   register/thread                  202
+  launch__shared_mem_per_block                                       Kbyte/block                82.94
+  lts__t_bytes.sum                                                         Mbyte                 3.54
+  void flash_fwd_splitkv_combine_kernel<Flash_fwd_kernel_traits<128, 64, 128, 4, 0, 0, bfloat16_t, Flash_kernel_traits<128, 64, 128, 4, bfloat16_t>>, 4, 2, 1>(Flash_fwd_params) (128, 1, 1)x(128, 1, 1), Context 1, Stream 7, Device 0, CC 12.0
+  gpu__time_duration.sum                                                      us                 3.68
+  launch__block_dim_x                                                      block                  128
+  launch__block_dim_y                                                      block                    1
+  launch__block_dim_z                                                      block                    1
+  launch__grid_dim_x                                                                              128
+  launch__grid_dim_y                                                                                1
+  launch__grid_dim_z                                                                                1
+  launch__occupancy_limit_blocks                                           block                   24
+  launch__occupancy_limit_registers                                        block                   10
+  launch__occupancy_limit_shared_mem                                       block                   28
+  launch__occupancy_limit_warps                                            block                   12
+  launch__registers_per_thread                                   register/thread                   46
+  launch__shared_mem_per_block                                       Kbyte/block                 1.10
+  lts__t_bytes.sum                                                         Mbyte                 1.56

@@ -9,7 +9,7 @@
 | 周次 | 实验主题 | 主要学习任务 | 主要材料或交付 |
 | --- | --- | --- | --- |
 | Week 01 | Serving 指标 | 从请求事件计算 TTFT、ITL、TPOT、E2E 与吞吐 | trace、观察工作表 |
-| Week 02 | Profiling | 在 Nsight Systems/Compute 中关联 API、stream、kernel 和计数器 | 课程 profiler 资料、分析工作表、阶段标记任务 |
+| Week 02 | Profiling | 在 Nsight Systems/Compute 中关联 API、stream、kernel 和计数器 | `.nsys-rep`、`.ncu-rep`、文本摘要、分析工作表、阶段标记任务 |
 | Week 03 | CUDA 基础 | 线程索引、边界保护、错误检查和基础 kernel | CUDA starter、公开测试 |
 | Week 04 | 优化框架 | 用 APOD、Amdahl 和融合分析定位优化收益 | CUDA starter、性能记录 |
 | Week 05 | 全局访存 | 比较连续、跨步和转置访问的地址与带宽 | CUDA starter、访存记录 |

@@ -13,7 +13,7 @@
 - `templates/`：带文件名、函数签名和 TODO 标记的学生 starter；只修改题卡指定区域。
 - `tests/`：可公开运行的契约测试，用于本地快速反馈；平台仍会运行隐藏和集成阶段。
 - `kernels/`、`microllm/`：从 CUDA 算子到 serving engine、KV cache 和调度器的课程代码主线。
-- `labs/`：无模型练习数据、profiler 资料和分析工作表。
+- `labs/`：无模型练习数据、profiler 资料和分析工作表；Week 02 同时提供可直接打开的 `.nsys-rep` 与 `.ncu-rep`。
 - `reports/`：综合阶段报告模板，要求记录实验边界、原始样本和证据来源。
 
 ## 使用边界
