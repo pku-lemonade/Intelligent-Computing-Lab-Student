@@ -11,7 +11,16 @@ PHASES = frozenset({"prefill", "decode", "h2d", "sampling"})
 
 @contextmanager
 def phase_range(phase: str, *, enable_nvtx: bool = True) -> Iterator[str]:
-    # TODO_BEGIN(W02_T01)
+    if phase not in PHASES:
+        raise ValueError(f"unknown runtime phase {phase!r}; expected one of {sorted(PHASES)}")
     name = f"microllm::{phase}"
-    yield name
-    # TODO_END(W02_T01)
+    pushed = False
+    with torch.autograd.profiler.record_function(name):
+        try:
+            if enable_nvtx and torch.cuda.is_available():
+                torch.cuda.nvtx.range_push(name)
+                pushed = True
+            yield name
+        finally:
+            if pushed:
+                torch.cuda.nvtx.range_pop()
