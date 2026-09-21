@@ -38,17 +38,25 @@ __device__ __nv_bfloat16 from_float<__nv_bfloat16>(float value) {
   return __float2bfloat16(value);
 }
 
+// TODO_BEGIN(W07_T01)
 __device__ float warp_reduce_sum(float value) {
-  // TODO_BEGIN(W07_T01)
   return value;
-  // TODO_END(W07_T01)
 }
 
 __device__ float warp_reduce_max(float value) {
-  for (int offset = kWarpSize / 2; offset > 0; offset >>= 1) {
-    value = fmaxf(value, __shfl_down_sync(0xffffffffu, value, offset));
-  }
   return value;
+}
+// TODO_END(W07_T01)
+
+// Teacher-provided probe so that warp_reduce_sum can be graded on its own:
+// one warp per row, at most 32 columns, lanes without input carry 0.
+__global__ void warp_sum_probe_kernel(
+    const float* input, float* output, int rows, int cols) {
+  const int row = blockIdx.x;
+  const int lane = threadIdx.x;
+  float value = lane < cols ? input[row * cols + lane] : 0.0f;
+  value = warp_reduce_sum(value);
+  if (lane == 0) output[row] = value;
 }
 
 template <typename scalar_t>
@@ -119,9 +127,26 @@ torch::Tensor row_max(torch::Tensor input) {
   return output;
 }
 
+torch::Tensor warp_sum_probe(torch::Tensor input) {
+  TORCH_CHECK(input.is_cuda(), "input must be a CUDA tensor");
+  TORCH_CHECK(input.dtype() == torch::kFloat32, "input must be float32");
+  TORCH_CHECK(input.dim() == 2, "input must have shape [rows, cols]");
+  TORCH_CHECK(input.size(1) <= kWarpSize, "warp_sum_probe supports at most 32 columns");
+  TORCH_CHECK(input.is_contiguous(), "input must be contiguous");
+  const int rows = input.size(0);
+  const int cols = input.size(1);
+  auto output = torch::empty({rows}, input.options());
+  if (rows == 0) return output;
+  warp_sum_probe_kernel<<<rows, kWarpSize>>>(
+      input.data_ptr<float>(), output.data_ptr<float>(), rows, cols);
+  TORCH_CHECK(cudaGetLastError() == cudaSuccess, "warp_sum_probe launch failed");
+  return output;
+}
+
 }  // namespace
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("row_sum", &row_sum, "Row-wise sum reduction");
   m.def("row_max", &row_max, "Row-wise maximum reduction");
+  m.def("warp_sum_probe", &warp_sum_probe, "Single-warp row sum used to grade warp_reduce_sum");
 }

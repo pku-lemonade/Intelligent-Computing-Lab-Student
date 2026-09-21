@@ -130,6 +130,19 @@ class Engine:
             if not prompt_token_ids:
                 raise ValueError("prompt encoded to an empty token sequence")
             encoded_prompts.append((index, prompt, prompt_token_ids))
+        context_limit = getattr(self.backend, "max_context_tokens", None)
+        if context_limit is not None:
+            required = [len(tokens) + max(0, (sampling_params.max_tokens or 1) - 1) for _, _, tokens in encoded_prompts]
+            limit = context_limit()
+            if any(tokens > limit for tokens in required):
+                raise ValueError(f"batched context requires {max(required)} tokens; paged KV capacity is {limit} tokens")
+            if sum(required) > limit:
+                raise ValueError(f"batched contexts require {sum(required)} tokens; paged KV capacity is {limit} tokens")
+        if any(len(tokens) > max_num_batched_tokens for _, _, tokens in encoded_prompts):
+            if getattr(self.backend, "prefill_chunk", None) is None:
+                raise ValueError("prompt exceeds token budget and backend does not support chunked prefill")
+            enable_chunked_prefill = True
+            scheduler.enable_chunked_prefill = True
         if cache_aware_scheduling:
             order = cache_aware_order([tokens for _, _, tokens in encoded_prompts])
             encoded_prompts = [encoded_prompts[index] for index in order]
@@ -196,10 +209,83 @@ class Engine:
         sampling_params: SamplingParams | None = None,
     ) -> Iterator[dict]:
         # TODO_BEGIN(W11_T05)
-        if False:
-            yield {}
-        return
+        raise NotImplementedError("implement the single-request streaming generation loop")
+        yield {}  # unreachable: keeps this function a generator so the error surfaces on first next()
         # TODO_END(W11_T05)
+
+    def _check_context_capacity(
+        self, prompt_token_ids: list[int], sampling_params: SamplingParams
+    ) -> None:
+        """Reject a request that cannot fit before any KV slot is allocated."""
+        context_limit = getattr(self.backend, "max_context_tokens", None)
+        if context_limit is None:
+            return
+        required = len(prompt_token_ids) + max(0, (sampling_params.max_tokens or 1) - 1)
+        limit = context_limit()
+        if required > limit:
+            raise ValueError(
+                f"context requires {required} tokens (prompt={len(prompt_token_ids)}, "
+                f"max_output={sampling_params.max_tokens or 1}); paged KV capacity is {limit} tokens"
+            )
+
+    def _start_events(self, seq: Sequence, sampling_params: SamplingParams) -> Iterator[dict]:
+        """Emit the request and scheduler events that open a stream."""
+        prompt_token_ids = seq.prompt_token_ids
+        yield {
+            "event": "request",
+            "request_id": seq.request_id,
+            "prompt_token_ids": prompt_token_ids[:256],
+            "prompt_token_ids_tail": prompt_token_ids[-16:] if len(prompt_token_ids) > 256 else [],
+            "prompt_tokens": len(prompt_token_ids),
+            "max_tokens": sampling_params.max_tokens,
+            "backend": getattr(self, "backend_name", type(self.backend).__name__),
+            "kv_mode": getattr(self, "kv_mode", "unknown"),
+        }
+        yield {
+            "event": "scheduler",
+            "state": "admitted",
+            "queue_depth": 0,
+            "batch_size": 1,
+            "token_budget": len(prompt_token_ids) + (sampling_params.max_tokens or 0),
+        }
+
+    def _step_token_event(
+        self,
+        seq: Sequence,
+        token_id: int,
+        *,
+        step: int,
+        request_started: float,
+        decode_started: float | None,
+        past_key_values: object | None,
+    ) -> dict:
+        """Token event plus the per-step timing fields consumed by profilers."""
+        return {
+            **self._stream_token_event(seq, token_id),
+            "step": step,
+            "stage": "prefill" if step == 1 else "decode",
+            "first_token_latency_ms": round((time.perf_counter() - request_started) * 1000, 3) if step == 1 else None,
+            "decode_ms": round((time.perf_counter() - decode_started) * 1000, 3) if decode_started is not None else None,
+            "kv_cache": self._cache_stats(past_key_values),
+        }
+
+    def _step_finished_event(
+        self,
+        seq: Sequence,
+        finish_reason: str,
+        *,
+        request_started: float,
+        prefill_ms: float,
+        past_key_values: object | None,
+    ) -> dict:
+        """Finished event plus the request-level timing fields."""
+        return {
+            **self._stream_finished_event(seq, finish_reason),
+            "elapsed_ms": round((time.perf_counter() - request_started) * 1000, 3),
+            "prefill_ms": round(prefill_ms, 3),
+            "output_tokens": len(seq.generated_token_ids),
+            "kv_cache": self._cache_stats(past_key_values),
+        }
 
     def _stream_token_event(self, seq: Sequence, token_id: int) -> dict:
         return {

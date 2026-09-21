@@ -14,11 +14,12 @@ def test_w05_t01_coalesced_copy_preserves_the_matrix():
         assert_close(f"W05_T01[shape={shape}]", module.copy_coalesced(value), value)
 
 
-def test_w05_t02_strided_copy_preserves_the_matrix():
+def test_w05_t02_strided_copy_rasterizes_in_column_major_order():
     module = _module()
     for shape in ((1, 17), (17, 1), (3, 5), (31, 67)):
         value = torch.randn(shape, device="cuda", dtype=torch.float32)
-        assert_close(f"W05_T02[shape={shape}]", module.copy_strided(value), value)
+        expected = value.t().contiguous().flatten().reshape(value.shape)
+        assert_close(f"W05_T02[shape={shape}]", module.copy_strided(value), expected)
 
 
 def test_w05_t03_naive_transpose_handles_rectangular_matrices():

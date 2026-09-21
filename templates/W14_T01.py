@@ -33,7 +33,6 @@ def estimate_overlap_plan(config: SystemOptimizationConfig) -> dict:
     # TODO_BEGIN(W14_T03)
     raise NotImplementedError("implement overlap planning")
     # TODO_END(W14_T03)
-    return result
 
 
 def run_synthetic_experiment(config: SystemOptimizationConfig, *, repeats: int = 5) -> dict:

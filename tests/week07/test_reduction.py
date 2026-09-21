@@ -7,8 +7,10 @@ from microllm.kernels import assert_close, load_cuda_extension
 
 def test_w07_t01_warp_sum_reduces_partial_warp():
     module = _module()
+    # 17 columns < 32 lanes, so lanes 17..31 must contribute the neutral element
+    # without dropping out of the shuffle.
     value = torch.randn((4, 17), device="cuda")
-    assert_close("W07_T01", module.row_sum(value), value.sum(dim=-1), atol=1e-5, rtol=1e-5)
+    assert_close("W07_T01", module.warp_sum_probe(value), value.sum(dim=-1), atol=1e-5, rtol=1e-5)
 
 
 def test_w07_t02_row_sum_handles_multiple_warps():

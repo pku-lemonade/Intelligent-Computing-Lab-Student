@@ -11,7 +11,7 @@ from microllm.distributed import (
 from microllm.model.qwen3_torch import Qwen3Config
 
 
-def test_w15_t01_partition_preserves_decoder_dependencies():
+def test_af_t01_partition_preserves_decoder_dependencies():
     tasks = partition_decoder_layer(
         _config(),
         layer_id=0,
@@ -35,12 +35,12 @@ def test_w15_t01_partition_preserves_decoder_dependencies():
     assert tasks[1].transfer_bytes == tasks[3].transfer_bytes == 4 * 8 * 2
 
 
-def test_w15_t02_hidden_state_bytes_follow_tensor_shape():
+def test_af_t02_hidden_state_bytes_follow_tensor_shape():
     assert hidden_state_transfer_bytes(tokens=3, hidden_size=8, dtype=torch.bfloat16) == 48
     assert hidden_state_transfer_bytes(tokens=3, hidden_size=8, dtype=torch.float32) == 96
 
 
-def test_w15_t03_pipeline_respects_resources_and_layer_order():
+def test_af_t03_pipeline_respects_resources_and_layer_order():
     tasks = []
     for flow_id in ("a", "b"):
         for layer_id in (0, 1):

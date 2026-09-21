@@ -10,18 +10,26 @@ from microllm.model.attention import paged_attention_decode_reference
 
 
 def test_w12_t01_ensure_capacity_is_atomic():
-    manager = BlockManager(num_blocks=2, block_size=4)
-    manager.allocate(1, 0)
+    manager = BlockManager(num_blocks=3, block_size=4)
+    manager.allocate(1, 4)
+    assert manager.num_free_blocks == 2
     table = manager.ensure_capacity(1, 8)
     assert len(table.block_ids) == 2
+    assert manager.num_free_blocks == 1
+
     manager.allocate(2, 0)
+    # Two blocks are required but only one is free, so an implementation that
+    # allocates before checking would leave the sequence half-grown.
+    before = (list(manager.tables[2].block_ids), manager.num_free_blocks, manager.tables[2].length)
     try:
-        manager.ensure_capacity(2, 1)
+        manager.ensure_capacity(2, 8)
     except RuntimeError as exc:
         assert "not enough KV blocks" in str(exc)
     else:
         raise AssertionError("capacity exhaustion must fail")
-    assert manager.tables[2].block_ids == []
+    after = (list(manager.tables[2].block_ids), manager.num_free_blocks, manager.tables[2].length)
+    assert after == before
+    assert after == ([], 1, 0)
 
 
 def test_w12_t02_slot_mapping_uses_physical_block_ids():
