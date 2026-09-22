@@ -18,17 +18,33 @@ def load_cuda_extension(name: str, sources: tuple[str, ...]):
     if not torch.cuda.is_available():
         raise KernelUnavailable("CUDA is not available")
     root = Path(__file__).resolve().parents[2]
+    resolved = _resolve_split_sources(root, sources)
     try:
         with _python_bin_on_path():
             return load(
                 name=name,
-                sources=[str(root / source) for source in sources],
+                sources=[str(root / source) for source in resolved],
                 extra_cflags=["-O3"],
                 extra_cuda_cflags=_cuda_cflags(root),
                 verbose=False,
             )
     except Exception as exc:
         raise KernelUnavailable(str(exc)) from exc
+
+
+def _resolve_split_sources(root: Path, sources: tuple[str, ...]) -> list[str]:
+    """If a .cu has a companion _wrapper.cpp, use both as separate TUs."""
+    result: list[str] = []
+    for source in sources:
+        p = Path(source)
+        if p.suffix == ".cu":
+            wrapper = p.parent / "_wrappers" / (p.stem + "_wrapper.cpp")
+            if (root / wrapper).is_file():
+                result.append(str(wrapper))
+                result.append(source)
+                continue
+        result.append(source)
+    return result
 
 
 @contextmanager
